@@ -1,20 +1,44 @@
 const express = require('express');
-
+const connectDb =  require('./config/database');
 const app = express();
-//the sequence of routes that will be executed when the application is started with express app 
+const User = require('./models/user');
 
-//request handler
-app.use((req,res) => {
-    res.send('Welcome');
+app.use(express.json());
+ app.post('/signup', async (req, res) => {
+   
+
+    const user = new User(req.body)
+    //  //creating a new instance of the user model
+    // const user = new User(
+    //     {
+    //         firstName: "John",
+    //         lastName:"Doe",
+    //         email:"johndoe@example.com",
+    //         password:"password123"
+    //     }
+    // );
+
+    // await user.save();
+    // res.send('User registered successfully');
+    try {
+        await user.save();
+        res.status(201).json({ message: 'User registered successfully' });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+ });
+
+connectDb()
+ .then(()=>{
+    console.log('Connected to MongoDB');
+    app.listen(7777,()=>{
+        console.log('Server started on port 7777');
+    });
+    //require('./models/User'); // require the User model
+})
+ .catch(err=>{
+    console.error('Error connecting to db:',err.message);
+    process.exit(1);
 });
 
-app.use("/hello",(req, res) => {
-    res.send('Hello World');
-});
-
-app.use("/",(req, res) => {
-    res.send('About Us');
-});
-app.listen(2777,()=>{
-    console.log('Server started on port 2777');
-});
+// cqu7ItVo7fYd7qVG
