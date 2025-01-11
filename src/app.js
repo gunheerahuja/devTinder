@@ -12,7 +12,7 @@ app.use(express.json());
    //validation of data
    validateSignupData(req);
    
-   const { firstName, lastName, email, password}  = req.body;
+   const { firstName, lastName, email }  = req.body;
    const {password} = req.body;
 
    //encrypt password
