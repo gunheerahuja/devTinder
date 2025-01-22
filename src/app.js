@@ -1,158 +1,48 @@
-const express = require('express');
-const connectDb =  require('./config/database');
+const express = require("express");
+const connectDB = require("./config/database");
 const app = express();
-const User = require('./models/user');
-const {validateSignupData} = require('./utils/validation');
-const bcrypt = require('bcrypt');
+const cookieParser = require("cookie-parser");
+const cors = require("cors");
+const http = require("http");
 
+require("dotenv").config();
 
+require("./utils/cronjob");
+
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    credentials: true,
+  })
+);
 app.use(express.json());
- app.post('/signup', async (req, res) => {
-    try{
-   //validation of data
-   validateSignupData(req);
-   
-   const { firstName, lastName, email }  = req.body;
-   const {password} = req.body;
+app.use(cookieParser());
 
-   //encrypt password
-   const paswordHash =  await bcrypt.hash(password,10);
-   console.log(paswordHash);
+const authRouter = require("./routes/auth");
+const profileRouter = require("./routes/profile");
+const requestRouter = require("./routes/request");
+const userRouter = require("./routes/user");
+const paymentRouter = require("./routes/payment");
+const initializeSocket = require("./utils/socket");
+const chatRouter = require("./routes/chat");
 
-   //  //creating a new instance of the user model
-    const user = new User({
-        firstName,
-        lastName,
-        email,
-        password:  paswordHash,
-    })
-    //  //creating a new instance of the user model
-    // const user = new User(
-    //     {
-    //         firstName: "John",
-    //         lastName:"Doe",
-    //         email:"johndoe@example.com",
-    //         password:"password123"
-    //     }
-    // );
+app.use("/", authRouter);
+app.use("/", profileRouter);
+app.use("/", requestRouter);
+app.use("/", userRouter);
+app.use("/", paymentRouter);
+app.use("/", chatRouter);
 
-    // await user.save();
-    // res.send('User registered successfully');
-    
-        await user.save();
-        res.status(201).json({ message: 'User registered successfully' });
-    } catch (error) {
-        res.status(400).json({ message: error.message });
-    }
- });
+const server = http.createServer(app);
+initializeSocket(server);
 
-
-app.post('/login', async (req, res) => {
-    try {
-        const { email, password } = req.body;
-        
-        const user = await User.findOne({ email });
-        
-        if (!user) {
-          throw new Error ('Invalid credentials');
-        }
-            const isPasswordValid = await bcrypt.verify(password);
-            
-        if (isPasswordValid) {
-            res.send("login success");
-        }
-        else {
-            throw new Error ('Invalid credentials');
-        }
-    }
-    catch (error) {
-        res.status(400).json({ message: error.message });
-    }
-});
-
- //get user by email
- app.get('/user/:email', async (req, res) => {
-     const useremail = req.body.email;
-
-     try{
-    const users = await  User.find({ email: useremail});
-    if(users.length === 0) {
-         res.status(404).json({ message: 'User not found' });
-    }
-    else{
-        res.send(users);
- 
-    }
-    
-     }
-     catch(error){
-         res.status(404).json({ message: error.message });
-     }
-
- });
-
- //login api - POST /login - authenticate user
- //feed api -GET/feed -get all users from the database
- app.get('/feed', async (req, res) => {
-   try{
-    const users = await User.find({});
-    res.send(users);
-   }
-   catch(error){
-       res.status(500).json({ message: error.message });
-   }
- });
-
- app.delete('/users', async (req, res) => {
-    const userID = req.body.userID;
-    try{
-        const user = await User.findByIdAndDelete(userID);
-        if(!user) return res.status(404).json({ message: 'User not found' });
-        res.send("user deleted successfully");
-    }
-    catch(error){
-        res.status(500).json({ message: error.message });
-    }
- });
-
- //update user profile
- app.patch("/users/:userId",async (req, res) => {
-    const userID = req.params?.userID;
-    const data = req.body;
-
-    const ALLOWED_UPDATES =["userId","photoUrl","about","gender","age","hobbies"];
-    const isUpdateAllowed = Object.keys(data).every((k) =>
-         ALLOWED_UPDATES.includes(k)
-    );
-    if(!isUpdateAllowed) {
-        throw new Error("Update not allowed");
-    }
-    if(data?.hobbies.length > 5) {
-        throw new Error("Maximum 5 hobbies are allowed");
-    }
-    try{
-        const user = await User.findByIdAndUpdate({_id:userID},data,{
-            returnDocument: "after",
-            returnValidators: true,
-        });
-        res.send("user updated successfully");
-    }
-    catch(error){
-        res.status(500).json({ message: error.message });
-    }
+connectDB()
+  .then(() => {
+    console.log("Database connection established...");
+    server.listen(process.env.PORT, () => {
+      console.log("Server is successfully listening on port 7777...");
     });
-//start server
-connectDb()
- .then(()=>{
-    console.log('Connected to MongoDB');
-    app.listen(7777,()=>{
-        console.log('Server started on port 7777');
-    });
-    //require('./models/User'); // require the User model
-})
- .catch(err=>{
-    console.error('Error connecting to db:',err.message);
-    process.exit(1);
-});
-
-// cqu7ItVo7fYd7qVG
+  })
+  .catch((err) => {
+    console.error("Database cannot be connected!!");
+  });
